@@ -66,6 +66,24 @@ class Files
         return $lines;
     }
     /**
+     * Returns the mime type of a file
+     */
+    public function mime(string $filepath): string
+    {
+        try {
+
+            $fp = finfo_open(FILEINFO_MIME_TYPE);
+            return finfo_file($fp, $filepath);
+
+        } catch (\Throwable $th) {
+            throw new FilesystemException("Cannot get mime info on file '$filepath'");
+        } finally {
+            finfo_close($fp);
+        }
+
+        finfo_close($fp);
+    }
+    /**
      * Move a file to a different folder, creating the destination folders if necessary
      * @example $files->move('path/to/old/file.txt', 'path/to/new');  moves path/to/old/file.txt to path/to/new/file.txt
      */
