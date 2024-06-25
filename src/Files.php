@@ -7,140 +7,239 @@ namespace Phico\Filesystem;
 
 class Files
 {
+    private string $filepath;
+    private string $folder;
+    private string $fullname;
+    private string $filename;
+    private string $extension;
+
+
+    public function __construct(string $filepath)
+    {
+        $this->filepath = $filepath;
+        $this->setMeta();
+    }
     /**
      * Append to an existing file, creating the file and folders if necessary
-     * @example files()->append('storage/logs/app.log', 'Another message');
+     * @example files('storage/logs/app.log')->append('Another message');
      */
-    public function append(string $filepath, string $content): void
+    public function append(string $content): self
     {
-        if (!file_exists($filepath)) {
-            $this->create($filepath);
+        if (!file_exists($this->filepath)) {
+            $this->create();
         }
-        file_put_contents($filepath, $content, FILE_APPEND);
+        if (false === file_put_contents($this->filepath, $content, FILE_APPEND | LOCK_EX)) {
+            throw new FilesystemException("Failed to append to file at $this->filepath");
+        }
+
+        return $this;
     }
-    public function copy(string $from, string $to, bool $overwrite = false): void
+    public function copy(string $to, bool $overwrite = false): Files
     {
         if (false === $overwrite and file_exists($to)) {
-            throw new FilesystemException("Cannot copy '$from' to '$to' as the destination file already exists");
+            throw new FilesystemException("Cannot copy '$this->filepath' to '$to' as the destination file already exists");
         }
-        if (!file_exists($from)) {
-            throw new FilesystemException("Cannot copy '$from' to '$to' as the source file does not exist");
+        if (!file_exists($this->filepath)) {
+            throw new FilesystemException("Cannot copy '$this->filepath' to '$to' as the source file does not exist");
         }
-        rename($from, $to);
+        if (!copy($this->filepath, $to)) {
+            throw new FilesystemException("Failed to copy file from $this->filepath to $to");
+        }
+
+        return new Files($to);
     }
-    public function create(string $filepath): void
+    public function create(): self
     {
-        if (!file_exists($filepath)) {
-            $folder = dirname($filepath);
+        if (!file_exists($this->filepath)) {
+            $folder = dirname($this->filepath);
             if (!is_dir($folder)) {
                 if (false === mkdir($folder, 0775, true)) {
                     throw new FilesystemException("Cannot create folder at $folder, check permissions?");
                 }
             }
         }
-        if (false === touch($filepath)) {
-            throw new FilesystemException("Failed to create file at $filepath");
+        if (false === touch($this->filepath)) {
+            throw new FilesystemException("Failed to create file at $this->filepath");
         }
+
+        return $this;
     }
-    public function delete(string $filepath): void
+    public function delete(): void
     {
-        if (file_exists($filepath)) {
-            if (false === unlink($filepath)) {
-                throw new FilesystemException("Cannot delete file at $filepath, check permissions?");
+        if (file_exists($this->filepath)) {
+            if (false === unlink($this->filepath)) {
+                throw new FilesystemException("Cannot delete file at $this->filepath, check permissions?");
             }
         }
     }
-    public function exists(string $filepath): bool
+    public function exists(): bool
     {
-        return file_exists($filepath);
+        return file_exists($this->filepath);
     }
-    public function lines(string $filepath): array
+    public function mime(): object
     {
-        if (!file_exists($filepath)) {
-            throw new FilesystemException("Cannot read file at '$filepath' as the file does not exist");
+        if (!file_exists($this->filepath)) {
+            throw new FilesystemException("Cannot get mime type of file '$this->filepath' as the file does not exist");
         }
-        $lines = file($filepath);
+
+        $fp = finfo_open();
+        if (!$fp) {
+            throw new FilesystemException("Failed to open fileinfo resource");
+        }
+
+        try {
+
+            $info = finfo_file($fp, $this->filepath, FILEINFO_MIME);
+            if (false === $info) {
+                throw new FilesystemException("Cannot get fileinfo on file '$this->filepath'");
+            }
+
+            return (object) $info;
+
+        } finally {
+
+            finfo_close($fp);
+
+        }
+    }
+    public function lines(): array
+    {
+        if (!file_exists($this->filepath)) {
+            throw new FilesystemException("Cannot read file at '$this->filepath' as the file does not exist");
+        }
+        $lines = file($this->filepath);
         if (false === $lines) {
-            throw new FilesystemException("Failed to read file at '$filepath'");
+            throw new FilesystemException("Failed to read file at '$this->filepath'");
         }
         return $lines;
     }
     /**
-     * Returns the mime type of a file
-     */
-    public function mime(string $filepath): string
-    {
-        try {
-
-            $fp = finfo_open(FILEINFO_MIME_TYPE);
-            return finfo_file($fp, $filepath);
-
-        } catch (\Throwable $th) {
-            throw new FilesystemException("Cannot get mime info on file '$filepath'");
-        } finally {
-            finfo_close($fp);
-        }
-
-        finfo_close($fp);
-    }
-    /**
      * Move a file to a different folder, creating the destination folders if necessary
-     * @example $files->move('path/to/old/file.txt', 'path/to/new');  moves path/to/old/file.txt to path/to/new/file.txt
+     * @example $files('path/to/old/file.txt')->move('path/to/new');  moves path/to/old/file.txt to path/to/new/file.txt
      */
-    public function move(string $from, string $to, bool $overwrite = false): void
+    public function move(string $to, bool $overwrite = false): void
     {
-        $filename = basename($from);
+        $filename = basename($this->filepath);
         $to = dirname($to);
 
         if (false === $overwrite and file_exists("$to/$filename")) {
-            throw new FilesystemException("Cannot move '$from' to '$to' as the a file with that name already exists in the destination folder");
+            throw new FilesystemException("Cannot move '$this->filepath' to '$to' as the a file with that name already exists in the destination folder");
         }
-        if (!file_exists($from)) {
-            throw new FilesystemException("Cannot move '$from' to '$to' as the source file does not exist");
+        if (!file_exists($this->filepath)) {
+            throw new FilesystemException("Cannot move '$this->filepath' to '$to' as the source file does not exist");
         }
-        if (false === rename($from, "$to/$filename")) {
-            throw new FilesystemException("Failed to move file from $from to $to/$filename");
+        if (false === rename($this->filepath, "$to/$filename")) {
+            throw new FilesystemException("Failed to move file from $this->filepath to $to/$filename");
+        }
+
+        // update filepath to new location
+        $this->filepath = "$to/$filename";
+        $this->setMeta();
+    }
+    /**
+     * Change the owner of a file
+     */
+    public function owner(string $user, string $group = null): self
+    {
+        if (!file_exists($this->filepath)) {
+            throw new FilesystemException("Cannot change owner of file at '$this->filepath' as the file does not exist");
+        }
+
+        $original_owner = fileowner($this->filepath);
+        $original_group = filegroup($this->filepath);
+
+        try {
+
+            if (!chown($this->filepath, $user)) {
+                throw new FilesystemException("Failed to change the owner of the file '$this->filepath' to '$user'");
+            }
+
+            if (!is_null($group) && !chgrp($this->filepath, $group)) {
+                throw new FilesystemException("Failed to change the group of the file '$this->filepath' to '$group'");
+            }
+
+            return $this;
+
+        } catch (\Throwable $th) {
+
+            // change ownership back
+            chown($this->filepath, $original_owner);
+            chgrp($this->filepath, $original_group);
+
+            throw $th;
         }
     }
-    public function read(string $filepath): string
+    /**
+     * Change the permissions of a file
+     */
+    public function permissions(int $permissions): self
     {
-        if (!file_exists($filepath)) {
-            throw new FilesystemException("Cannot read file at '$filepath' as the file does not exist");
+        if (!file_exists($this->filepath)) {
+            throw new FilesystemException("Cannot change permissions of the file at '$this->filepath' as the file does not exist");
         }
-        $content = file_get_contents($filepath);
+
+        $original_permissions = fileperms($this->filepath);
+
+        if (!chmod($this->filepath, $permissions)) {
+            throw new FilesystemException("Failed to change the permissions of the file '$this->filepath' to '" . decoct($permissions) . "'");
+        }
+
+        return $this;
+    }
+    public function read(): string
+    {
+        if (!file_exists($this->filepath)) {
+            throw new FilesystemException("Cannot read file at '$this->filepath' as the file does not exist");
+        }
+        $content = file_get_contents($this->filepath);
         if (false === $content) {
-            throw new FilesystemException("Failed to read file at '$filepath'");
+            throw new FilesystemException("Failed to read file at '$this->filepath'");
         }
         return $content;
     }
-    public function rename(string $filepath, string $to, bool $overwrite = false): void
+    public function rename(string $to, bool $overwrite = false): void
     {
         $to = basename($to);
-        $folder = dirname($filepath);
+        $folder = dirname($this->filepath);
 
         if (false === $overwrite and file_exists("$folder/$to")) {
-            throw new FilesystemException("Cannot rename '$filepath' to '$to' as a file with that name already exists");
+            throw new FilesystemException("Cannot rename '$this->filepath' to '$to' as a file with that name already exists");
         }
-        if (!file_exists($filepath)) {
-            throw new FilesystemException("Cannot rename '$filepath' to '$to' as the file does not exist");
+        if (!file_exists($this->filepath)) {
+            throw new FilesystemException("Cannot rename '$this->filepath' to '$to' as the file does not exist");
         }
-        if (false === rename($filepath, "$folder/$to")) {
-            throw new FilesystemException("Failed to rename $filepath to $folder/$to");
+        if (false === rename($this->filepath, "$folder/$to")) {
+            throw new FilesystemException("Failed to rename $this->filepath to $folder/$to");
         }
+
+        // update filepath to new location
+        $this->filepath = "$folder/$to";
+        $this->setMeta();
     }
     /**
      * Write to a file, creating the file and folders if necessary, careful this will overwrite any existing content in the file
      * @example $files->write('storage/logs/app.log', 'The only message');
      */
-    public function write(string $filepath, string $content): void
+    public function write(string $content): self
     {
-        if (!file_exists($filepath)) {
-            $this->create($filepath);
+        if (!file_exists($this->filepath)) {
+            $this->create();
         }
 
-        if (false === file_put_contents($filepath, $content)) {
-            throw new FilesystemException("Failed to write to $filepath");
+        if (false === file_put_contents($this->filepath, $content, LOCK_EX)) {
+            throw new FilesystemException("Failed to write to $this->filepath");
         }
+
+        return $this;
+    }
+
+    private function setMeta(): void
+    {
+        $info = pathinfo($this->filepath);
+        $this->folder = $info['dirname'];
+        $this->fullname = $info['basename'];
+        $this->filename = $info['filename'];
+        $this->extension = $info['extension'];
     }
 }
 

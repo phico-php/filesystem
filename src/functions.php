@@ -13,16 +13,15 @@ function path(string $str = ''): string
 
     return $path;
 }
-
 if (!function_exists('files')) {
-    function files(): \Phico\Filesystem\Files
+    function files(string $filepath): \Phico\Filesystem\Files
     {
-        return new \Phico\Filesystem\Files;
+        return new \Phico\Filesystem\Files($filepath);
     }
 }
 if (!function_exists('folders')) {
-    function folders(): \Phico\Filesystem\Folders
+    function folders(string $path): \Phico\Filesystem\Folders
     {
-        return new \Phico\Filesystem\Folders;
+        return new \Phico\Filesystem\Folders($path);
     }
 }
