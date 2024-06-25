@@ -19,6 +19,10 @@ class Files
         $this->filepath = $filepath;
         $this->setMeta();
     }
+    public function __toString(): string
+    {
+        return $this->filepath;
+    }
     /**
      * Append to an existing file, creating the file and folders if necessary
      * @example files('storage/logs/app.log')->append('Another message');
@@ -107,7 +111,7 @@ class Files
         if (!file_exists($this->filepath)) {
             throw new FilesystemException("Cannot read file at '$this->filepath' as the file does not exist");
         }
-        $lines = file($this->filepath);
+        $lines = file($this->filepath, FILE_IGNORE_NEW_LINES);
         if (false === $lines) {
             throw new FilesystemException("Failed to read file at '$this->filepath'");
         }
@@ -117,23 +121,25 @@ class Files
      * Move a file to a different folder, creating the destination folders if necessary
      * @example $files('path/to/old/file.txt')->move('path/to/new');  moves path/to/old/file.txt to path/to/new/file.txt
      */
-    public function move(string $to, bool $overwrite = false): void
+    public function move(string $dst, bool $overwrite = false): void
     {
-        $filename = basename($this->filepath);
-        $to = dirname($to);
-
-        if (false === $overwrite and file_exists("$to/$filename")) {
-            throw new FilesystemException("Cannot move '$this->filepath' to '$to' as the a file with that name already exists in the destination folder");
+        if (false === $overwrite and file_exists($dst)) {
+            throw new FilesystemException("Cannot move '$this->filepath' to '$dst' as a file with that name already exists in the destination folder");
         }
         if (!file_exists($this->filepath)) {
-            throw new FilesystemException("Cannot move '$this->filepath' to '$to' as the source file does not exist");
+            throw new FilesystemException("Cannot move '$this->filepath' to '$dst' as the source file does not exist");
         }
-        if (false === rename($this->filepath, "$to/$filename")) {
-            throw new FilesystemException("Failed to move file from $this->filepath to $to/$filename");
+
+        // create file at dst (recusively creating folders)
+        files($dst)->create();
+
+        // move this file to dst
+        if (false === rename($this->filepath, "$dst")) {
+            throw new FilesystemException("Failed to move file from $this->filepath to $dst");
         }
 
         // update filepath to new location
-        $this->filepath = "$to/$filename";
+        $this->filepath = $dst;
         $this->setMeta();
     }
     /**

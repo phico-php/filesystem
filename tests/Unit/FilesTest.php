@@ -5,165 +5,183 @@ use Phico\Filesystem\FilesystemException;
 
 beforeEach(function () {
     // Set up a temporary directory for testing
-    $this->tempDir = sys_get_temp_dir() . '/phico_test';
-    if (!is_dir($this->tempDir)) {
-        mkdir($this->tempDir);
+    $this->tmp = sys_get_temp_dir() . '/phico-php/tests/' . md5(microtime(true));
+    if (!is_dir($this->tmp)) {
+        mkdir($this->tmp);
     }
 });
-
 afterEach(function () {
     // Clean up the temporary directory after each test
-    array_map('unlink', glob("$this->tempDir/*.*"));
-    rmdir($this->tempDir);
+    // array_map('unlink', glob("$this->tmp/*.*"));
+    folders($this->tmp)->delete(true);
 });
 
-test('it appends to a file', function () {
-    $files = new Files();
-    $filePath = "$this->tempDir/test.log";
+test('can append to a file', function () {
+    $path = "$this->tmp/test.log";
+    $files = new Files($path);
 
-    $files->append($filePath, 'First line');
-    $files->append($filePath, 'Second line');
+    $files->append('First line');
+    $files->append('Second line');
 
-    $content = file_get_contents($filePath);
+    $content = file_get_contents($path);
     expect($content)->toContain('First line')
         ->toContain('Second line');
 });
 
-test('it copies a file', function () {
-    $files = new Files();
-    $sourcePath = "$this->tempDir/source.txt";
-    $destinationPath = "$this->tempDir/destination.txt";
+test('can copy a file', function () {
+    $src = "$this->tmp/source.txt";
+    $dst = "$this->tmp/destination.txt";
+    $files = new Files($src);
 
-    file_put_contents($sourcePath, 'Some content');
-    $files->copy($sourcePath, $destinationPath);
+    file_put_contents($src, 'Some content');
+    $new = $files->copy($dst);
 
-    expect(file_exists($destinationPath))->toBeTrue()
-        ->and(file_get_contents($destinationPath))->toBe('Some content');
+    expect(file_exists($dst))
+        ->toBeTrue()
+        ->and(file_get_contents($dst))
+        ->toBe('Some content');
+
+    expect((string) $files)->toBe($src);
+    expect((string) $new)->toBe($dst);
 });
 
-test('it creates a file', function () {
-    $files = new Files();
-    $filePath = "$this->tempDir/newfile.txt";
+test('can create a file', function () {
+    $path = "$this->tmp/newfile.txt";
+    $files = new Files($path);
 
-    $files->create($filePath);
+    $files->create();
 
-    expect(file_exists($filePath))->toBeTrue();
+    expect(file_exists($path))->toBeTrue();
 });
 
-test('it deletes a file', function () {
-    $files = new Files();
-    $filePath = "$this->tempDir/delete.txt";
+test('can delete a file', function () {
+    $path = "$this->tmp/delete.txt";
+    $files = new Files($path);
 
-    file_put_contents($filePath, 'To be deleted');
-    $files->delete($filePath);
+    file_put_contents($path, 'To be deleted');
+    $files->delete();
 
-    expect(file_exists($filePath))->toBeFalse();
+    expect(file_exists($path))->toBeFalse();
 });
 
-test('it checks if a file exists', function () {
-    $files = new Files();
-    $filePath = "$this->tempDir/exists.txt";
+test('can check if a file exists', function () {
+    $path = "$this->tmp/exists.txt";
+    $files = new Files($path);
 
-    file_put_contents($filePath, 'Check existence');
+    file_put_contents($path, 'Check existence');
 
-    expect($files->exists($filePath))->toBeTrue()
-        ->and($files->exists("$this->tempDir/nonexistent.txt"))->toBeFalse();
+    expect($files->exists($path))->toBeTrue()
+        ->and(files("$this->tmp/nonexistent.txt")->exists())->toBeFalse();
 });
 
-test('it reads lines from a file', function () {
-    $files = new Files();
-    $filePath = "$this->tempDir/lines.txt";
+test('can read lines from a file', function () {
+    $path = "$this->tmp/lines.txt";
+    $files = new Files($path);
 
-    file_put_contents($filePath, "Line 1\nLine 2\nLine 3");
-    $lines = $files->lines($filePath);
+    file_put_contents($path, "Line 1\nLine 2\nLine 3");
+    $lines = $files->lines();
 
     expect($lines)->toBe(['Line 1', 'Line 2', 'Line 3']);
 });
 
-test('it moves a file', function () {
-    $files = new Files();
-    $sourcePath = "$this->tempDir/move_source.txt";
-    $destinationPath = "$this->tempDir/move_destination.txt";
+test('can move a file', function () {
+    $src = "$this->tmp/move_source.txt";
+    $dst = "$this->tmp/new-folder/move_destination.txt";
+    $files = new Files($src);
 
-    file_put_contents($sourcePath, 'Move this content');
-    $files->move($sourcePath, $destinationPath);
+    file_put_contents($src, 'Move this content');
+    $files->move($dst);
 
-    expect(file_exists($sourcePath))->toBeFalse()
-        ->and(file_exists($destinationPath))->toBeTrue()
-        ->and(file_get_contents($destinationPath))->toBe('Move this content');
+    expect(file_exists($src))->toBeFalse()
+        ->and(file_exists($dst))->toBeTrue()
+        ->and(file_get_contents($dst))->toBe('Move this content');
 });
 
-test('it reads a file', function () {
-    $files = new Files();
-    $filePath = "$this->tempDir/read.txt";
+test('can read a file', function () {
+    $path = "$this->tmp/read.txt";
+    $files = new Files($path);
 
-    file_put_contents($filePath, 'Read this content');
-    $content = $files->read($filePath);
+    file_put_contents($path, 'Read this content');
+    $content = $files->read();
 
     expect($content)->toBe('Read this content');
 });
 
-test('it renames a file', function () {
-    $files = new Files();
-    $sourcePath = "$this->tempDir/rename_source.txt";
-    $destinationPath = "$this->tempDir/renamed.txt";
+test('can rename a file', function () {
+    $src = "$this->tmp/rename_source.txt";
+    $dst = "$this->tmp/renamed.txt";
+    $files = new Files($src);
 
-    file_put_contents($sourcePath, 'Rename this content');
-    $files->rename($sourcePath, $destinationPath);
+    file_put_contents($src, 'Rename this content');
+    $files->rename($dst);
 
-    expect(file_exists($sourcePath))->toBeFalse()
-        ->and(file_exists($destinationPath))->toBeTrue()
-        ->and(file_get_contents($destinationPath))->toBe('Rename this content');
+    expect(file_exists($src))->toBeFalse()
+        ->and(file_exists($dst))->toBeTrue()
+        ->and(file_get_contents($dst))->toBe('Rename this content');
 });
 
-test('it writes to a file', function () {
-    $files = new Files();
-    $filePath = "$this->tempDir/write.txt";
+test('can write to a file', function () {
+    $path = "$this->tmp/write.txt";
+    $files = new Files($path);
 
-    $files->write($filePath, 'Write this content');
+    $files->write('Write this content');
 
-    expect(file_exists($filePath))->toBeTrue()
-        ->and(file_get_contents($filePath))->toBe('Write this content');
+    expect(file_exists($path))->toBeTrue()
+        ->and(file_get_contents($path))->toBe('Write this content');
+});
+test('can write to a file then read it', function () {
+    $path = "$this->tmp/write-read.txt";
+    $files = new Files($path);
+    $content = 'Write this content and read it back again';
+
+    $read = $files->write($content)->read();
+
+    expect(file_exists($path))
+        ->toBeTrue()
+        ->and(file_get_contents($path))
+        ->toBe($content);
+
+    expect($read)->toBe($content);
 });
 
-test('it throws an exception when copying a file that already exists without overwrite', function () {
-    $files = new Files();
-    $sourcePath = "$this->tempDir/source.txt";
-    $destinationPath = "$this->tempDir/destination.txt";
+test('throws an exception when copying a file that already exists without overwrite', function () {
+    $src = "$this->tmp/source.txt";
+    $dst = "$this->tmp/destination.txt";
+    $files = new Files($src);
 
-    file_put_contents($sourcePath, 'Source content');
-    file_put_contents($destinationPath, 'Existing content');
+    file_put_contents($src, 'Source content');
+    file_put_contents($dst, 'Existing content');
 
-    expect(fn() => $files->copy($sourcePath, $destinationPath))->toThrow(FilesystemException::class);
+    expect(fn() => $files->copy($dst))->toThrow(FilesystemException::class);
 });
 
-test('it throws an exception when copying a non-existent file', function () {
-    $files = new Files();
-    $sourcePath = "$this->tempDir/nonexistent_source.txt";
-    $destinationPath = "$this->tempDir/destination.txt";
+test('throws an exception when copying a non-existent file', function () {
+    $src = "$this->tmp/nonexistent_source.txt";
+    $dst = "$this->tmp/destination.txt";
+    $files = new Files($src);
 
-    expect(fn() => $files->copy($sourcePath, $destinationPath))->toThrow(FilesystemException::class);
+    expect(fn() => $files->copy($dst))->toThrow(FilesystemException::class);
 });
 
-test('it throws an exception when moving a non-existent file', function () {
-    $files = new Files();
-    $sourcePath = "$this->tempDir/nonexistent_source.txt";
-    $destinationPath = "$this->tempDir/destination.txt";
+test('throws an exception when moving a non-existent file', function () {
+    $src = "$this->tmp/nonexistent_source.txt";
+    $dst = "$this->tmp/destination.txt";
+    $files = new Files($src);
 
-    expect(fn() => $files->move($sourcePath, $destinationPath))->toThrow(FilesystemException::class);
+    expect(fn() => $files->move($dst))->toThrow(FilesystemException::class);
 });
 
-test('it throws an exception when reading a non-existent file', function () {
-    $files = new Files();
-    $filePath = "$this->tempDir/nonexistent.txt";
+test('throws an exception when reading a non-existent file', function () {
+    $path = "$this->tmp/nonexistent.txt";
+    $files = new Files($path);
 
-    expect(fn() => $files->read($filePath))->toThrow(FilesystemException::class);
+    expect(fn() => $files->read())->toThrow(FilesystemException::class);
 });
 
-test('it throws an exception when renaming a non-existent file', function () {
-    $files = new Files();
-    $sourcePath = "$this->tempDir/nonexistent_source.txt";
-    $destinationPath = "$this->tempDir/renamed.txt";
+test('throws an exception when renaming a non-existent file', function () {
+    $src = "$this->tmp/nonexistent_source.txt";
+    $dst = "$this->tmp/renamed.txt";
+    $files = new Files($src);
 
-    expect(fn() => $files->rename($sourcePath, $destinationPath))->toThrow(FilesystemException::class);
+    expect(fn() => $files->rename($dst))->toThrow(FilesystemException::class);
 });

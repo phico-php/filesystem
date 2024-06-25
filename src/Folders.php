@@ -8,73 +8,79 @@ namespace Phico\Filesystem;
 
 class Folders
 {
-    private string $path;
+    private string $folder;
 
 
-    public function __construct(string $path)
+    public function __construct(string $folder)
     {
-        $this->path = $path;
+        $this->folder = $folder;
+    }
+    public function __toString(): string
+    {
+        return $this->folder;
     }
     public function copy(string $to, bool $overwrite = false): Folders
     {
-        if (!is_dir($this->path)) {
-            throw new FilesystemException("Cannot copy '$this->path' to '$to' as the source folder does not exist");
+        if (!is_dir($this->folder)) {
+            throw new FilesystemException("Cannot copy '$this->folder' to '$to' as the source folder does not exist");
         }
         if (is_dir($to)) {
             if (false === $overwrite) {
-                throw new FilesystemException("Cannot copy '$this->path' to '$to' as the destination folder already exists");
+                throw new FilesystemException("Cannot copy '$this->folder' to '$to' as the destination folder already exists");
             }
             exec("rm -rf $to");
         }
-        exec("cp -r $this->path $to");
+        exec("cp -r $this->folder $to");
 
         return new Folders($to);
     }
     public function create(int $permissions = 0775): self
     {
-        if (!is_dir($this->path)) {
-            mkdir($this->path, $permissions, true);
+        if (!is_dir($this->folder)) {
+            mkdir($this->folder, $permissions, true);
         }
-        chmod($this->path, $permissions);
+        chmod($this->folder, $permissions);
 
         return $this;
     }
     public function delete(bool $force = false): void
     {
-        if ($force && is_dir($this->path)) {
-            exec("rm -rf $this->path");
+        if ($force && is_dir($this->folder)) {
+            exec("rm -rf $this->folder");
         } else {
-            exec("rm -r $this->path");
+            exec("rm -r $this->folder");
         }
     }
     public function exists(): bool
     {
-        return is_dir($this->path);
+        return is_dir($this->folder);
     }
     public function list(): array
     {
-        if (!is_dir($this->path)) {
-            throw new FilesystemException("Cannot scan folder at '$this->path' as the folder does not exist");
+        if (!is_dir($this->folder)) {
+            throw new FilesystemException("Cannot scan folder at '$this->folder' as the folder does not exist");
         }
-        return array_filter(scandir($this->path, SCANDIR_SORT_ASCENDING), function ($filename) {
+        return array_filter(scandir($this->folder, SCANDIR_SORT_ASCENDING), function ($filename) {
             return !str_starts_with($filename, '.');
         });
     }
     public function move(string $to, bool $overwrite = false): self
     {
-        if (!is_dir($this->path)) {
-            throw new FilesystemException("Cannot move '$this->path' to '$to' as the source folder does not exist");
+        if (!is_dir($this->folder)) {
+            throw new FilesystemException("Cannot move '$this->folder' to '$to' as the source folder does not exist");
         }
         if (is_dir($to)) {
             if (false === $overwrite) {
-                throw new FilesystemException("Cannot move '$this->path' to '$to' as the destination folder already exists");
+                throw new FilesystemException("Cannot move '$this->folder' to '$to' as the destination folder already exists");
             }
             exec("rm -rf $to");
         }
-        exec("mv -r $this->path $to");
+        if (false === rename($this->folder, $to)) {
+            throw new FilesystemException("Failed to move '$this->folder' to '$to'");
+        }
 
         // update path
-        $this->path = $to;
+        $this->folder = $to;
 
         return $this;
     }
@@ -83,21 +89,21 @@ class Folders
      */
     public function owner(string $user, string $group = null): self
     {
-        if (!is_dir($this->path)) {
-            throw new FilesystemException("Cannot change owner of folder at '$this->path' as the folder does not exist");
+        if (!is_dir($this->folder)) {
+            throw new FilesystemException("Cannot change owner of folder at '$this->folder' as the folder does not exist");
         }
 
-        $original_owner = fileowner($this->path);
-        $original_group = filegroup($this->path);
+        $original_owner = fileowner($this->folder);
+        $original_group = filegroup($this->folder);
 
         try {
 
-            if (!chown($this->path, $user)) {
-                throw new FilesystemException("Failed to change the owner of the folder '$this->path' to '$user'");
+            if (!chown($this->folder, $user)) {
+                throw new FilesystemException("Failed to change the owner of the folder '$this->folder' to '$user'");
             }
 
-            if (!is_null($group) && !chgrp($this->path, $group)) {
-                throw new FilesystemException("Failed to change the group of the folder '$this->path' to '$group'");
+            if (!is_null($group) && !chgrp($this->folder, $group)) {
+                throw new FilesystemException("Failed to change the group of the folder '$this->folder' to '$group'");
             }
 
             return $this;
@@ -105,8 +111,8 @@ class Folders
         } catch (\Throwable $th) {
 
             // change ownership back
-            chown($this->path, $original_owner);
-            chgrp($this->path, $original_group);
+            chown($this->folder, $original_owner);
+            chgrp($this->folder, $original_group);
 
             throw $th;
         }
@@ -116,11 +122,11 @@ class Folders
      */
     public function permissions(int $permissions): self
     {
-        if (!is_dir($this->path)) {
-            throw new FilesystemException("Cannot change permissions of the folder at '$this->path' as the folder does not exist");
+        if (!is_dir($this->folder)) {
+            throw new FilesystemException("Cannot change permissions of the folder at '$this->folder' as the folder does not exist");
         }
-        if (!chmod($this->path, $permissions)) {
-            throw new FilesystemException("Failed to change the permissions of the folder '$this->path' to '" . decoct($permissions) . "'");
+        if (!chmod($this->folder, $permissions)) {
+            throw new FilesystemException("Failed to change the permissions of the folder '$this->folder' to '" . decoct($permissions) . "'");
         }
 
         return $this;
