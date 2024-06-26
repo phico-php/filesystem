@@ -242,10 +242,10 @@ class Files
     private function setMeta(): void
     {
         $info = pathinfo($this->filepath);
-        $this->folder = $info['dirname'];
-        $this->fullname = $info['basename'];
-        $this->filename = $info['filename'];
-        $this->extension = $info['extension'];
+        $this->folder = $info['dirname'] ?? '';
+        $this->fullname = $info['basename'] ?? '';
+        $this->filename = $info['filename'] ?? '';
+        $this->extension = $info['extension'] ?? '';
     }
 }
 
