@@ -84,6 +84,14 @@ class Folders
 
         return $this;
     }
+    public function mtime(): int
+    {
+        if (!file_exists($this->folder)) {
+            throw new FilesystemException("Cannot get modification time of the folder '$this->folder' as the folder does not exist");
+        }
+
+        return filemtime($this->folder);
+    }
     /**
      * Change the owner of a folder
      */

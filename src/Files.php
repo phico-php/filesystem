@@ -106,6 +106,14 @@ class Files
 
         }
     }
+    public function mtime(): int
+    {
+        if (!file_exists($this->filepath)) {
+            throw new FilesystemException("Cannot get modification time of file '$this->filepath' as the file does not exist");
+        }
+
+        return filemtime($this->filepath);
+    }
     public function lines(): array
     {
         if (!file_exists($this->filepath)) {
