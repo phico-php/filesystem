@@ -80,31 +80,9 @@ class Files
     {
         return file_exists($this->filepath);
     }
-    public function mime(): object
+    public function mime(): Mime
     {
-        if (!file_exists($this->filepath)) {
-            throw new FilesystemException("Cannot get mime type of file '$this->filepath' as the file does not exist");
-        }
-
-        $fp = finfo_open();
-        if (!$fp) {
-            throw new FilesystemException("Failed to open fileinfo resource");
-        }
-
-        try {
-
-            $info = finfo_file($fp, $this->filepath, FILEINFO_MIME);
-            if (false === $info) {
-                throw new FilesystemException("Cannot get fileinfo on file '$this->filepath'");
-            }
-
-            return (object) $info;
-
-        } finally {
-
-            finfo_close($fp);
-
-        }
+        return new Mime($this->filepath);
     }
     public function mtime(): int
     {
