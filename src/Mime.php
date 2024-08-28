@@ -113,23 +113,24 @@ class Mime
         }
     }
     // returns all the mime encoding for the file
-    public function encoding(array $map = []): ?string
+    public function getEncoding(array $map = []): ?string
     {
         $result = $this->finfo->file($this->filepath, FILEINFO_MIME_ENCODING);
         return (false === $result) ? null : $result;
     }
     // returns the mime extension for the file or null if it cannot be determined (not the filename extension)
-    public function extension(array $map = []): ?string
+    public function getExtension(array $map = []): ?string
     {
-        $result = $this->finfo->file($this->filepath, FILEINFO_EXTENSION);
-        if (false === $result) {
+        $results = $this->finfo->file($this->filepath, FILEINFO_EXTENSION);
+        if (false === $results) {
             return $this->mapTypeToExtension($map);
         }
 
-        return $result;
+        $results = explode('/', $results);
+        return array_shift($results);
     }
     // returns the mime type of the file
-    public function type(): ?string
+    public function getType(): ?string
     {
         $result = $this->finfo->file($this->filepath, FILEINFO_MIME_TYPE);
         return (false === $result) ? null : $result;
