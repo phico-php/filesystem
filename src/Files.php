@@ -57,6 +57,7 @@ class Files
         if (!file_exists($this->filepath)) {
             $folder = dirname($this->filepath);
             if (!is_dir($folder)) {
+                // @TODO folder()->create()
                 if (false === mkdir($folder, 0775, true)) {
                     throw new FilesystemException("Cannot create folder at $folder, check permissions?");
                 }
