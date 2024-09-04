@@ -5,6 +5,10 @@ declare(strict_types=1);
 // path cannot be overridden
 function path(string $str = ''): string
 {
+    if (!defined('PHICO_PATH_ROOT')) {
+        throw new RuntimeException('PHICO_PATH_ROOT must be defined before calling path()');
+    }
+
     //    $root = str_replace('/public', '', getcwd());
     // return sprintf('%s/%s', str_replace('/src', '', __DIR__), ltrim($str, '/'));
     $str = str_replace(['\\', '/./', '/../'], '/', trim($str));

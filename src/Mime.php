@@ -138,7 +138,7 @@ class Mime
     // maps the mime type using a customisable map
     private function mapTypeToExtension(array $map = []): ?string
     {
-        $type = $this->type();
+        $type = $this->getType();
         $map = array_merge($this->mime_to_ext, $map);
 
         return $map[$type] ?? null;

@@ -32,5 +32,8 @@
     "php": "^8.0",
     "phpstan/phpstan": "*",
     "pestphp/pest": "^2.34"
+  },
+  "scripts": {
+    "analyse": "vendor/bin/phpstan analyse src/"
   }
 }
